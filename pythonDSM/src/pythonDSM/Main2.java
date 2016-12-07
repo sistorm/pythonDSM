@@ -12,8 +12,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
-import javax.swing.plaf.FileChooserUI;
-
 public class Main2 {
 
 	private static String baseParentDirectory = "";
@@ -25,10 +23,6 @@ public class Main2 {
 	private static HashMap<File, Integer> fileDepth;
 
 	private static Object baseParentDirectoryFile;
-
-	public Main2() {
-		// TODO Auto-generated constructor stub
-	}
 
 	public static void main(String[] args) {
 		String path = args[0];
@@ -50,8 +44,119 @@ public class Main2 {
 
 		populateDependencies();
 
+		sortbyDependency(1);
+
 		printMatrix(maxDepth);
 
+	}
+
+	private static void sortbyDependency(int depthToSort) {
+
+		HashMap<File, ArrayList<File>> subNodules = new HashMap<>();
+
+		ArrayList<File> arrToSort = new ArrayList<>();
+		for (File f : mapIndexes) {
+
+			int dept = fileDepth.get(f);
+
+			if (dept == depthToSort + 1) {
+				arrToSort.add(f);
+			} else if (dept == depthToSort) {
+
+				subNodules.put(f, new ArrayList<>(arrToSort));
+
+				arrToSort = new ArrayList<>();
+			}
+
+		}
+
+		for (Entry<File, ArrayList<File>> module : subNodules.entrySet()) {
+
+			arrToSort = module.getValue();
+			File m = module.getKey();
+
+			int mIndex = mapIndexes.indexOf(m);
+
+			for (int i = (arrToSort.size() -1 ); i >= 0; i--) {
+
+				for (int j = 1; j <= i; j++) {
+
+					File jm1File = arrToSort.get(j - 1);
+					File jFile = arrToSort.get(j);
+
+					int jm1FileIndex = mapIndexes.indexOf(jm1File);
+					int jFileIndex = mapIndexes.indexOf(jFile);
+
+					int jm1FileDependency = matrix.get(jm1FileIndex).get(jFileIndex);
+
+					int jFileDependency = matrix.get(jFileIndex).get(jm1FileIndex);
+					
+					
+					
+					
+					if (jm1FileDependency >= jFileDependency) {
+
+						{
+							File tempInArray = arrToSort.remove(j - 1);
+
+							arrToSort.add(j, tempInArray);
+						}
+						{
+							File tempjm1 = mapIndexes.remove(jm1FileIndex);
+
+							mapIndexes.add(jFileIndex, tempjm1);
+						}
+
+						{
+							ArrayList<Integer> subModmatrix1 = matrix.remove(jm1FileIndex);
+
+							matrix.add(jFileIndex, subModmatrix1);
+
+							for (int k = 0; k < mapIndexes.size(); ++k) {
+
+								ArrayList<Integer> subModmatrix = matrix.get(k);
+
+								int tempDep = subModmatrix.remove(jm1FileIndex);
+
+								subModmatrix.add(jFileIndex, tempDep);
+
+							}
+
+						}
+
+						int fileToMoveIdx = jm1FileIndex - 1;
+						int destinationFileIdx = jFileIndex - 1;
+						while (fileToMoveIdx >= 0 && destinationFileIdx >= 0
+								&& fileDepth.get(mapIndexes.get(fileToMoveIdx)) > depthToSort + 1) {
+
+							ArrayList<Integer> subModmatrix1 = matrix.remove(fileToMoveIdx);
+
+							matrix.add(destinationFileIdx, subModmatrix1);
+
+							for (int k = 0; k < mapIndexes.size(); ++k) {
+
+								ArrayList<Integer> subModmatrix = matrix.get(k);
+
+								int tempDep = subModmatrix.remove(fileToMoveIdx);
+
+								subModmatrix.add(destinationFileIdx, tempDep);
+
+							}
+
+							{
+								File fToMove = mapIndexes.remove(fileToMoveIdx);
+
+								mapIndexes.add(destinationFileIdx, fToMove);
+							}
+
+							fileToMoveIdx = fileToMoveIdx - 1;
+							destinationFileIdx = destinationFileIdx - 1;
+
+						}
+					}
+				}
+			}
+		}
 	}
 
 	private static void populateDependencies() {
@@ -93,36 +198,32 @@ public class Main2 {
 									// System.err.println("dependantFile not
 									// found (\""+dependantFilePath +"\"");
 								} else {
-									int depFileIndex = mapIndexes.indexOf(dependantFile);
-	
-									int currentValue = matrix.get(fileIndex).get(depFileIndex);
-									matrix.get(fileIndex).set(depFileIndex, currentValue + 1);
-									
-									
-									File fparentdep = file.getParentFile();
-									int fIndex = fileIndex;
-									
-									while(fparentdep.exists() && !fparentdep.equals(baseParentDirectoryFile)){
-										fIndex = mapIndexes.indexOf(fparentdep);
-										
-										currentValue = matrix.get(fIndex).get(depFileIndex);
-										matrix.get(fIndex).set(depFileIndex, currentValue + 1);
-										
-										fparentdep = fparentdep.getParentFile();
+									Integer depFileIndex = null;
+									Integer currentValue = null;
 
-									}
-									
-									
-									File fparent = dependantFile.getParentFile();
-									while(fparent.exists() && !fparent.equals(baseParentDirectoryFile)){
-										depFileIndex = mapIndexes.indexOf(fparent);
+									File fparentCurrFile = file;
+									File fparent = dependantFile;
+									int fIndex = mapIndexes.indexOf(fparentCurrFile);
+									depFileIndex = mapIndexes.indexOf(fparent);
+
+									while (fparentCurrFile.exists()
+											&& !fparentCurrFile.equals(baseParentDirectoryFile)) {
 										
-										currentValue = matrix.get(fileIndex).get(depFileIndex);
-										matrix.get(fileIndex).set(depFileIndex, currentValue + 1);
+										fparent = dependantFile;
 										
-										fparent = fparent.getParentFile();
-										
-										
+										while (fparent.exists() && !fparent.equals(baseParentDirectoryFile)) {
+
+											depFileIndex = mapIndexes.indexOf(fparent);
+
+											fIndex = mapIndexes.indexOf(fparentCurrFile);
+
+											currentValue = matrix.get(fIndex).get(depFileIndex);
+											matrix.get(fIndex).set(depFileIndex, currentValue + 1);
+
+											fparent = fparent.getParentFile();
+										}
+										fparentCurrFile = fparentCurrFile.getParentFile();
+
 									}
 								}
 							} else {
@@ -136,37 +237,33 @@ public class Main2 {
 									// System.err.println("dependantFile not
 									// found (\""+dependantFilePath +"\"");
 								} else {
-									int depFileIndex = mapIndexes.indexOf(dependantFile);
+									Integer depFileIndex = null;
+									Integer currentValue = null;
 
-									int currentValue = matrix.get(fileIndex).get(depFileIndex);
-									matrix.get(fileIndex).set(depFileIndex, currentValue + 1);
-									
-									
-									
-									File fparentdep = file.getParentFile();
-									int fIndex = fileIndex;
-									
-									while(fparentdep.exists() && !fparentdep.equals(baseParentDirectoryFile)){
-										fIndex = mapIndexes.indexOf(fparentdep);
+									File fparentCurrFile = file;
+									File fparent = dependantFile;
+									int fIndex = mapIndexes.indexOf(fparentCurrFile);
+									depFileIndex = mapIndexes.indexOf(fparent);
+
+									while (fparentCurrFile.exists()
+											&& !fparentCurrFile.equals(baseParentDirectoryFile)) {
+
+										fparent = dependantFile;
 										
-										currentValue = matrix.get(fIndex).get(depFileIndex);
-										matrix.get(fIndex).set(depFileIndex, currentValue + 1);
-										
-										fparentdep = fparentdep.getParentFile();
+										while (fparent.exists() && !fparent.equals(baseParentDirectoryFile)) {
+
+											depFileIndex = mapIndexes.indexOf(fparent);
+
+											fIndex = mapIndexes.indexOf(fparentCurrFile);
+
+											currentValue = matrix.get(fIndex).get(depFileIndex);
+											matrix.get(fIndex).set(depFileIndex, currentValue + 1);
+
+											fparent = fparent.getParentFile();
+										}
+										fparentCurrFile = fparentCurrFile.getParentFile();
 
 									}
-									
-									File fparent = file.getParentFile();
-									
-									while(fparent.exists() && !fparent.equals(baseParentDirectoryFile)){
-										depFileIndex = mapIndexes.indexOf(fparent);
-										
-										currentValue = matrix.get(fileIndex).get(depFileIndex);
-										matrix.get(fileIndex).set(depFileIndex, currentValue + 1);
-										
-										fparent = fparent.getParentFile();
-									}
-									
 								}
 
 							}
@@ -198,6 +295,20 @@ public class Main2 {
 
 			}
 		}
+	}
+
+	private static boolean contains(File f1, File f2) {
+
+		if (f1.equals(f2))
+			return false;
+
+		if (f1.isFile() && f2.isFile())
+			return false;
+
+		if (f1.isDirectory() && f2.getAbsolutePath().contains(f1.getAbsolutePath()))
+			return true;
+		else
+			return false;
 	}
 
 	private static int buildFileDependencies(String absolutePath, int depth) {
@@ -325,10 +436,20 @@ public class Main2 {
 			print(",");
 
 			for (int k = 0; k < subDep.size(); k++) {
-				Integer dependency = subDep.get(k);
 
-				print("" + dependency.toString() + ",");
+				File dependantFile = mapIndexes.get(k);
 
+				 if(!contains(file, dependantFile)
+				 && !contains(dependantFile, file))
+				 {
+
+					Integer dependency = subDep.get(k);
+	
+					print("" + dependency.toString());
+
+				 }else
+				 print("0");
+				print(",");
 			}
 			print("\n");
 		}
