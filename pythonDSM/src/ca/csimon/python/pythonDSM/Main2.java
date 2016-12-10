@@ -1,4 +1,4 @@
-package pythonDSM;
+package ca.csimon.python.pythonDSM;
 
 import java.io.BufferedReader;
 import java.io.File;
